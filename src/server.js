@@ -1,6 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import authRoutes from './routes/authRoutes.js';
+import restaurantRoutes from './routes/restaurantRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -9,24 +10,25 @@ app.use(express.json());
 if (process.env.NODE_ENV !== 'test') app.use(morgan('tiny'));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/restaurants', restaurantRoutes);
 
 app.use((req, res, next) => {
-    const err = new Error('Not Found');
-    err.status = 404;
-    next(err);
+  const err = new Error('Not Found');
+  err.status = 404;
+  next(err);
 });
 
 app.use((err, req, res, next) => {
-    console.log(err.stack);
-    if (!err.status) {
-        err.status = 500;
-        err.message = 'Internal Server Error';
-    }
-    res.status(err.status).json({ error: err.message });
+  console.log(err.stack);
+  if (!err.status) {
+    err.status = 500;
+    err.message = 'Internal Server Error';
+  }
+  res.status(err.status).json({ error: err.message });
 });
 
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 }
 
 export default app;
