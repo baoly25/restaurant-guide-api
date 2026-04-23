@@ -1,5 +1,8 @@
 import express from 'express';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
+import yaml from 'js-yaml';
+import fs from 'fs';
 import authRoutes from './routes/authRoutes.js';
 import restaurantRoutes from './routes/restaurantRoutes.js';
 import menuItemRoutes from './routes/menuItemRoutes.js';
@@ -10,6 +13,15 @@ const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
 if (process.env.NODE_ENV !== 'test') app.use(morgan('tiny'));
+
+let specs;
+try {
+  specs = yaml.load(fs.readFileSync('./docs/openapi.yaml', 'utf8'));
+} catch (error) {
+  console.log('Failed to load openAPI specification', error);
+  process.exit(1);
+}
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/restaurants', restaurantRoutes);

@@ -1,0 +1,905 @@
+openapi: 3.0.3
+
+info:
+  title: Restaurant Guide API
+  version: 1.0.0
+  description: API for managing restaurant listings, menu items, and reviews.
+
+servers:
+  - url: http://localhost:8080/api
+
+tags:
+  - name: Auth
+    description: User authentication endpoints
+  - name: Restaurants
+    description: Operations related to restaurant listings
+  - name: Menu Items
+    description: Operations related to menu items
+  - name: Reviews
+    description: Operations related to restaurant reviews
+
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: Create a new user account
+      description: Register a new user with email and password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '409':
+          $ref: '#/components/responses/EmailConflict'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in and receive a JWT
+      description: Authenticate with email and password to receive an access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+
+  /restaurants:
+    get:
+      tags:
+        - Restaurants
+      summary: Get all restaurants
+      description: Retrieve a list of all restaurants. Supports search, sort, and pagination.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Filter restaurants containing this keyword in name, description, cuisine, or location
+          schema:
+            type: string
+            example: sushi
+        - name: sortBy
+          in: query
+          required: false
+          description: Field to sort results by
+          schema:
+            type: string
+            enum:
+              - id
+              - name
+              - cuisine
+              - location
+              - createdAt
+            example: createdAt
+        - name: order
+          in: query
+          required: false
+          description: Sort order
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            example: desc
+        - name: offset
+          in: query
+          required: false
+          description: Number of items to skip
+          schema:
+            type: integer
+            example: 0
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of items to return
+          schema:
+            type: integer
+            example: 5
+      responses:
+        '200':
+          description: A list of restaurants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Restaurants
+      summary: Create a new restaurant
+      description: Create a new restaurant listing. The authenticated user becomes the owner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestaurantRequest'
+      responses:
+        '201':
+          description: Restaurant successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restaurants/{id}:
+    get:
+      tags:
+        - Restaurants
+      summary: Get a restaurant by ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: The restaurant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Restaurants
+      summary: Update a restaurant
+      description: Update an existing restaurant. Only the owner can update their restaurant.
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRestaurantRequest'
+      responses:
+        '200':
+          description: Restaurant successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - Restaurants
+      summary: Delete a restaurant
+      description: Delete a restaurant. Only the owner can delete their restaurant.
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Restaurant successfully deleted
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /menu-items:
+    get:
+      tags:
+        - Menu Items
+      summary: Get all menu items
+      description: Retrieve a list of all menu items. Can be filtered by restaurant.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Filter menu items containing this keyword in name, description, or category
+          schema:
+            type: string
+            example: tuna
+        - name: restaurantId
+          in: query
+          required: false
+          description: Filter menu items by restaurant ID
+          schema:
+            type: integer
+            example: 1
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - id
+              - name
+              - price
+              - category
+            example: price
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            example: asc
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 5
+      responses:
+        '200':
+          description: A list of menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Menu Items
+      summary: Create a new menu item
+      description: Create a menu item for a restaurant. Only the owner of the restaurant can add menu items.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMenuItemRequest'
+      responses:
+        '201':
+          description: Menu item successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /menu-items/{id}:
+    get:
+      tags:
+        - Menu Items
+      summary: Get a menu item by ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: The menu item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Menu Items
+      summary: Update a menu item
+      description: Update an existing menu item. Only the owner of the parent restaurant can update.
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMenuItemRequest'
+      responses:
+        '200':
+          description: Menu item successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - Menu Items
+      summary: Delete a menu item
+      description: Delete a menu item. Only the owner of the parent restaurant can delete.
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Menu item successfully deleted
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reviews:
+    get:
+      tags:
+        - Reviews
+      summary: Get all reviews
+      description: Retrieve a list of all reviews. Can be filtered by restaurant or user.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Filter reviews containing this keyword in the comment
+          schema:
+            type: string
+            example: amazing
+        - name: restaurantId
+          in: query
+          required: false
+          description: Filter reviews by restaurant ID
+          schema:
+            type: integer
+            example: 1
+        - name: userId
+          in: query
+          required: false
+          description: Filter reviews by user ID
+          schema:
+            type: integer
+            example: 1
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - id
+              - rating
+              - createdAt
+            example: createdAt
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            example: desc
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 5
+      responses:
+        '200':
+          description: A list of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - Reviews
+      summary: Create a new review
+      description: Create a review for a restaurant. The authenticated user becomes the author.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Review successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reviews/{id}:
+    get:
+      tags:
+        - Reviews
+      summary: Get a review by ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: The review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      security:
+        - bearerAuth: []
+      tags:
+        - Reviews
+      summary: Update a review
+      description: Update an existing review. Only the author can update their review.
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+      responses:
+        '200':
+          description: Review successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      security:
+        - bearerAuth: []
+      tags:
+        - Reviews
+      summary: Delete a review
+      description: Delete a review. Only the author can delete their review.
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Review successfully deleted
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      description: Resource ID
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
+  schemas:
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@test.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+          example: alice1234
+        role:
+          type: string
+          enum:
+            - USER
+            - ADMIN
+          example: USER
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@test.com
+        password:
+          type: string
+          example: alice1234
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          example: alice@test.com
+        role:
+          type: string
+          enum:
+            - USER
+            - ADMIN
+          example: USER
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-04-19T12:00:00.000Z'
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    Restaurant:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Sakura Sushi
+        description:
+          type: string
+          example: Authentic Japanese cuisine in the heart of the city
+        cuisine:
+          type: string
+          example: Japanese
+        location:
+          type: string
+          example: Charlotte, NC
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-04-19T12:00:00.000Z'
+        ownerId:
+          type: integer
+          example: 1
+
+    CreateRestaurantRequest:
+      type: object
+      required:
+        - name
+        - description
+        - cuisine
+        - location
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Sakura Sushi
+        description:
+          type: string
+          minLength: 10
+          example: Authentic Japanese cuisine in the heart of the city
+        cuisine:
+          type: string
+          example: Japanese
+        location:
+          type: string
+          example: Charlotte, NC
+
+    UpdateRestaurantRequest:
+      type: object
+      description: At least one field must be provided
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Sakura Sushi & Ramen
+        description:
+          type: string
+          minLength: 10
+          example: Updated description for the restaurant
+        cuisine:
+          type: string
+          example: Japanese Fusion
+        location:
+          type: string
+          example: Charlotte, NC
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Spicy Tuna Roll
+        description:
+          type: string
+          example: Fresh tuna with spicy mayo and cucumber
+        price:
+          type: number
+          format: float
+          example: 12.99
+        category:
+          type: string
+          example: main
+        restaurantId:
+          type: integer
+          example: 1
+
+    CreateMenuItemRequest:
+      type: object
+      required:
+        - name
+        - description
+        - price
+        - category
+        - restaurantId
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Spicy Tuna Roll
+        description:
+          type: string
+          minLength: 5
+          example: Fresh tuna with spicy mayo and cucumber
+        price:
+          type: number
+          format: float
+          minimum: 0
+          example: 12.99
+        category:
+          type: string
+          example: main
+        restaurantId:
+          type: integer
+          minimum: 1
+          example: 1
+
+    UpdateMenuItemRequest:
+      type: object
+      description: At least one field must be provided
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Spicy Tuna Roll Deluxe
+        description:
+          type: string
+          minLength: 5
+          example: Fresh tuna with spicy mayo, cucumber, and avocado
+        price:
+          type: number
+          format: float
+          minimum: 0
+          example: 14.99
+        category:
+          type: string
+          example: main
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        comment:
+          type: string
+          example: Amazing food and great atmosphere!
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-04-19T12:00:00.000Z'
+        userId:
+          type: integer
+          example: 2
+        restaurantId:
+          type: integer
+          example: 1
+
+    CreateReviewRequest:
+      type: object
+      required:
+        - rating
+        - comment
+        - restaurantId
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        comment:
+          type: string
+          minLength: 5
+          example: Amazing food and great atmosphere!
+        restaurantId:
+          type: integer
+          minimum: 1
+          example: 1
+
+    UpdateReviewRequest:
+      type: object
+      description: At least one field must be provided
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 4
+        comment:
+          type: string
+          minLength: 5
+          example: Food was great but service was a bit slow.
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Error message here
+
+    ValidationError:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: string
+          example:
+            - Name is required
+            - Description must be at least 10 characters
+
+  responses:
+    InvalidInput:
+      description: Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    EmailConflict:
+      description: Email already in use
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Email has already been used
+
+    InvalidCredentials:
+      description: Invalid email or password
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Invalid credentials
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Not authenticated. Please provide a valid token.
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'Forbidden: insufficient permission.'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Resource not found
