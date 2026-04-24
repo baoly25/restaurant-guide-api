@@ -6,6 +6,7 @@ info:
   description: API for managing restaurant listings, menu items, and reviews.
 
 servers:
+  - url: https://restaurant-guide-api.onrender.com/api
   - url: http://localhost:8080/api
 
 tags:
