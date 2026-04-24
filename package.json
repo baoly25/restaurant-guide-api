@@ -9,7 +9,7 @@
     "seed": "node prisma/seed.js",
     "seed:prod": "node prisma/seed.js",
     "migrate:deploy": "npx prisma migrate deploy"
-  },p
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
